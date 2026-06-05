@@ -22,9 +22,10 @@ if(WIN32)
 endif()
 
 function(add_example example)
+  find_package(OpenGL)
   add_executable("${example}" examples/${example}.c )
   include_directories(${example} "include/")
-  target_link_libraries(${example} PRIVATE larpsaver)
+  target_link_libraries(${example} PRIVATE larpsaver ${OPENGL_LIBRARIES})
   # set_target_properties(${example} PROPERTIES SUFFIX ".scr")
 endfunction()
 

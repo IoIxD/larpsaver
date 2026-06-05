@@ -387,7 +387,6 @@ void larpsaver_loop(larpsaver_ctx *ctx) {
 
   while (ctx->running) {
     if (PeekMessage(&msg, ctx->platform->hwnd, 0, 0, PM_REMOVE)) {
-      // GetMessage(&msg, ctx->platform->hwnd, 0, 0);
       TranslateMessage(&msg);
       DispatchMessage(&msg);
       if (!ctx->running) {
