@@ -24,6 +24,7 @@ endif()
 function(add_example example)
   add_executable("${example}" WIN32 examples/${example}.c )
   include_directories(${example} "include/")
+  target_link_libraries(${example} PRIVATE larpsaver)
   # set_target_properties(${example} PROPERTIES SUFFIX ".scr")
 endfunction()
 
