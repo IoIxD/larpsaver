@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
   ctx->draw_func = draw;
   ctx->tick_func = tick;
 
-  printf("h\n");
+  larpsaver_loop(ctx);
 
   return 0;
 }

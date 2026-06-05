@@ -7,7 +7,7 @@ larpsaver_ctx *larpsaver_ctx_new(int argc, char **argv) {
 
   if (ctx) {
     memset(ctx, 0, sizeof(*ctx));
-    ctx->platform = larpsaver_platform_init(&ctx->supported_apis, argc, argv);
+    larpsaver_platform_init(ctx, argc, argv);
   }
 
   return ctx;

@@ -21,10 +21,14 @@ typedef struct larpsaver_ctx_t {
   void (*tick_func)(struct larpsaver_ctx_t *ctx);
   /* draw function, called at the monitor's refresh rate */
   void (*draw_func)(struct larpsaver_ctx_t *ctx);
+
+  /* Whether or not the screensaver is running*/
+  int running;
 } larpsaver_ctx;
 
 larpsaver_ctx *larpsaver_ctx_new(int argc, char **argv);
 void larpsaver_ctx_free(larpsaver_ctx *ctx);
+void larpsaver_loop(larpsaver_ctx* ctx);
 
 /* Supported APIs that are found on the host machine at runtime. */
 typedef enum larpsaver_api_t {
@@ -39,14 +43,11 @@ typedef enum larpsaver_api_t {
 void *larpsaver_get_proc_address(larpsaver_ctx *ctx, int api, const char *name);
 
 #ifdef _LARPSAVER
-larpsaver_platform *larpsaver_platform_init(int *supported_apis, int argc,
+void larpsaver_platform_init(larpsaver_ctx* ctx, int argc,
                                             char **argv);
 void larpsaver_platform_free(larpsaver_platform *plat);
-#endif
 
 #ifdef _WIN32
-#include <poppack.h>
-#include <pshpack1.h>
 #include <windows.h>
 
 #include <regstr.h>
@@ -87,7 +88,6 @@ typedef BOOL(WINAPI *VERIFYPWDPROC)(HWND);
 typedef DWORD(WINAPI *CHPWDPROC)(LPCTSTR, HWND, DWORD, PVOID);
 
 struct larpsaver_platform_t {
-  HWND hwnd;
   HDC hdc;
   HGLRC hrc;
   RECT rect;
@@ -97,7 +97,7 @@ struct larpsaver_platform_t {
   SYSTEMTIME clock1;
   SYSTEMTIME clock2;
 
-  HWND hMainWindow;
+  HWND hwnd;
   BOOL fChildPreview;
   HINSTANCE hMainInstance;
   TCHAR szName[TITLEBARNAMELEN];
@@ -123,7 +123,6 @@ struct larpsaver_platform_t {
 
 LRESULT ScreenSaverProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
-LRESULT DefScreenSaverProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 BOOL ScreenSaverConfigureDialog(HWND hDlg, UINT message, WPARAM wParam,
                                 LPARAM lParam);
 BOOL RegisterDialogClasses(HANDLE hInst);
@@ -131,8 +130,11 @@ BOOL RegisterDialogClasses(HANDLE hInst);
 #define SCRM_VERIFYPW WM_APP
 
 void WINAPI ScreenSaverChangePassword(HWND hParent);
+#endif
 
 #endif
+
+
 
 #ifdef __cplusplus
 }

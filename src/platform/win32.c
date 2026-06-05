@@ -1,11 +1,7 @@
 #include <larpsaver.h>
 #include <string.h>
 
-static larpsaver_ctx *ctx = NULL;
 
-/* screen saver window class */
-
-/* function names */
 
 static int ISSPACE(char c) { return (c == ' ' || c == '\t'); }
 #define ISNUM(c) ((c) >= '0' && c <= '9')
@@ -23,90 +19,49 @@ static unsigned long _toul(const char *s) {
   return res;
 }
 
-/* this function takes care of *must* do tasks, like terminating
-   screen saver */
-static LRESULT SysScreenSaverProc(HWND hWnd, UINT msg, WPARAM wParam,
-                                  LPARAM lParam) {
-  switch (msg) {
-  case WM_CREATE:
-    if (!ctx->platform->fChildPreview)
-      SetCursor(NULL);
-    /* mouse is not supposed to move from this position */
-    GetCursorPos(&ctx->platform->pt_orig);
-    break;
-  case WM_DESTROY:
-    PostQuitMessage(0);
-    break;
-  case WM_TIMER:
-    if (ctx->platform->closing)
-      return 0;
-    break;
-  case WM_PAINT:
-    if (ctx->platform->closing)
-      return DefWindowProc(hWnd, msg, wParam, lParam);
-    break;
-  case WM_SYSCOMMAND:
-    if (!ctx->platform->fChildPreview)
-      switch (wParam) {
-      case SC_CLOSE:
-      case SC_SCREENSAVE:
-      case SC_NEXTWINDOW:
-      case SC_PREVWINDOW:
-        return FALSE;
-      }
-    break;
-  case WM_MOUSEMOVE:
-  case WM_LBUTTONDOWN:
-  case WM_RBUTTONDOWN:
-  case WM_MBUTTONDOWN:
-  case WM_KEYDOWN:
-  case WM_SYSKEYDOWN:
-  case WM_NCACTIVATE:
-  case WM_ACTIVATE:
-  case WM_ACTIVATEAPP:
-    if (ctx->platform->closing)
-      return DefWindowProc(hWnd, msg, wParam, lParam);
-    break;
-  }
-  return ScreenSaverProc(hWnd, msg, wParam, lParam);
-}
+LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
+
 /*
   Register screen saver window class and call user
   supplied hook.
  */
-static BOOL RegisterClasses(void) {
+static BOOL RegisterClasses(larpsaver_platform* platform) {
   WNDCLASS cls;
 
   cls.hCursor = NULL;
-  cls.hIcon = LoadIcon(ctx->platform->hMainInstance, MAKEINTATOM(ID_APP));
+  cls.hIcon = LoadIcon(platform->hMainInstance, MAKEINTATOM(ID_APP));
   cls.lpszMenuName = NULL;
   cls.lpszClassName = CLASS_SCRNSAVE;
   cls.hbrBackground = GetStockObject(BLACK_BRUSH);
-  cls.hInstance = ctx->platform->hMainInstance;
+  cls.hInstance = platform->hMainInstance;
   cls.style = CS_VREDRAW | CS_HREDRAW | CS_SAVEBITS | CS_PARENTDC;
-  cls.lpfnWndProc = (WNDPROC)SysScreenSaverProc;
+  cls.lpfnWndProc = (WNDPROC)ScreenSaverProc;
   cls.cbWndExtra = 0;
   cls.cbClsExtra = 0;
 
   if (!RegisterClass(&cls))
     return FALSE;
-  return RegisterDialogClasses(ctx->platform->hMainInstance);
+  return RegisterDialogClasses(platform->hMainInstance);
 }
 
-static int LaunchScreenSaver(HWND hParent) {
-  BOOL foo;
+static void LaunchScreenSaver(HWND hParent, larpsaver_ctx* ctx, larpsaver_platform* platform) {
   UINT style;
   RECT rc;
   MSG msg;
+  BOOL foo;
+
+  printf("LaunchScreenSaver called\n");
+
   /* don't allow other tasks to get into the foreground */
-  if (ctx->platform->w95 && !ctx->platform->fChildPreview)
+  if (platform->w95 && !platform->fChildPreview)
     SystemParametersInfo(SPI_SCREENSAVERRUNNING, TRUE, &foo, 0);
+
   msg.wParam = 0;
   /* register classes, both user defined and classes used by screen saver
      library */
-  if (!RegisterClasses()) {
+  if (!RegisterClasses(platform)) {
     MessageBox(NULL, TEXT("RegisterClasses() failed"), NULL, MB_ICONHAND);
-    goto restore;
+    return FALSE;
   }
   /* a slightly different approach needs to be used when displaying
      in a preview window */
@@ -121,35 +76,24 @@ static int LaunchScreenSaver(HWND hParent) {
     rc.bottom = SM_CYSCREEN;
     style |= WS_VISIBLE;
   }
+
   /* create main screen saver window */
-  ctx->platform->hMainWindow = CreateWindowEx(
+  CreateWindowEx(
       hParent ? 0 : WS_EX_TOPMOST, CLASS_SCRNSAVE, TEXT("SCREENSAVER"), style,
       rc.left, rc.top, rc.right, rc.bottom, hParent, NULL,
-      ctx->platform->hMainInstance, NULL);
-  /* display window and start pumping messages */
-  if (ctx->platform->hMainWindow) {
-    UpdateWindow(ctx->platform->hMainWindow);
-    ShowWindow(ctx->platform->hMainWindow, SW_SHOW);
-    while (GetMessage(&msg, NULL, 0, 0) == TRUE) {
-      TranslateMessage(&msg);
-      DispatchMessage(&msg);
-    }
-  }
-restore:
-  /* restore system */
-  if (ctx->platform->w95 && !ctx->platform->fChildPreview)
-    SystemParametersInfo(SPI_SCREENSAVERRUNNING, FALSE, &foo, 0);
-  FreeLibrary(ctx->platform->hPwdLib);
-  return msg.wParam;
+      platform->hMainInstance, ctx);
+
+  ShowWindow(platform->hwnd, SW_SHOW);
+  UpdateWindow(platform->hwnd);
 }
-static void TerminateScreenSaver(HWND hWnd) {
+static void TerminateScreenSaver(HWND hWnd, larpsaver_ctx* ctx) {
   /* don't allow recursion */
   if (ctx->platform->checking_pwd || ctx->platform->closing)
     return;
   /* verify password */
   if (ctx->platform->VerifyScreenSavePwd) {
     ctx->platform->checking_pwd = TRUE;
-    ctx->platform->closing = SendMessage(hWnd, SCRM_VERIFYPW, 0, 0);
+    ctx->platform->closing = (BOOL)SendMessage(hWnd, SCRM_VERIFYPW, 0, 0);
     ctx->platform->checking_pwd = FALSE;
   } else
     ctx->platform->closing = TRUE;
@@ -160,51 +104,6 @@ static void TerminateScreenSaver(HWND hWnd) {
     GetCursorPos(&ctx->platform->pt_orig); /* if not: get new mouse position */
 }
 
-LONG DefScreenSaverProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-  /* don't do any special processing when in preview mode */
-  if (ctx->platform->fChildPreview || ctx->platform->closing)
-    return DefWindowProc(hWnd, msg, wParam, lParam);
-  switch (msg) {
-  case WM_CLOSE:
-    TerminateScreenSaver(hWnd);
-    /* do NOT pass this to DefWindowProc; it will terminate even if
-       an invalid password was given.
-     */
-    return 0;
-  case SCRM_VERIFYPW:
-    /* verify password or return TRUE if password checking is turned off */
-    if (ctx->platform->VerifyScreenSavePwd)
-      return ctx->platform->VerifyScreenSavePwd(hWnd);
-    else
-      return TRUE;
-  case WM_SETCURSOR:
-    if (ctx->platform->checking_pwd)
-      break;
-    SetCursor(NULL);
-    return TRUE;
-  case WM_NCACTIVATE:
-  case WM_ACTIVATE:
-  case WM_ACTIVATEAPP:
-    if (wParam != FALSE)
-      break;
-  case WM_MOUSEMOVE: {
-    POINT pt;
-    GetCursorPos(&pt);
-    if (pt.x == ctx->platform->pt_orig.x && pt.y == ctx->platform->pt_orig.y)
-      break;
-  }
-  case WM_LBUTTONDOWN:
-  case WM_RBUTTONDOWN:
-  case WM_MBUTTONDOWN:
-  case WM_KEYDOWN:
-  case WM_SYSKEYDOWN:
-    /* try to terminate screen saver */
-    if (!ctx->platform->checking_pwd)
-      PostMessage(hWnd, WM_CLOSE, 0, 0);
-    break;
-  }
-  return DefWindowProc(hWnd, msg, wParam, lParam);
-}
 
 void ScreenSaverChangePassword(HWND hParent) {
   /* load Master Password Router (MPR) */
@@ -221,85 +120,124 @@ void ScreenSaverChangePassword(HWND hParent) {
 }
 
 LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
-  switch (message) {
-  case WM_NCCREATE:
-    return TRUE;
-  case WM_NCDESTROY:
-    larpsaver_ctx_free(ctx);
-    return 0;
-  case WM_CREATE:
-    ctx->platform->hwnd = hwnd;
+    larpsaver_ctx* ctx = GetWindowLongPtr(hwnd, -21);
 
-    GetClientRect(hwnd, &ctx->platform->rect);
-    ctx->platform->width = ctx->platform->rect.right;
-    ctx->platform->height = ctx->platform->rect.bottom;
+    if (!ctx && !(message == WM_NCCREATE || message == WM_CREATE || message == WM_NCCALCSIZE)) {
+        printf("ctx still null (message %d)...\n",message);
+        return DefWindowProc(hwnd, message, wParam, lParam);
+    }
+    //printf("ctx %p\n", ctx);
 
-    if (ctx->supported_apis & LARPSAVER_API_OPENGL) {
-      ctx->platform->pfd.nSize = sizeof ctx->platform->pfd;
-      ctx->platform->pfd.nVersion = 1;
-      ctx->platform->pfd.dwFlags = PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
-      ctx->platform->pfd.iPixelType = PFD_TYPE_RGBA;
-      ctx->platform->pfd.cColorBits = 24;
-
-      ctx->platform->hdc = GetDC(hwnd);
-
-      SetPixelFormat(ctx->platform->hdc,
-                     ChoosePixelFormat(ctx->platform->hdc, &ctx->platform->pfd),
-                     &ctx->platform->pfd);
-
-      ctx->platform->hrc = ctx->platform->wglCreateContext(ctx->platform->hdc);
-      ctx->platform->wglMakeCurrent(ctx->platform->hdc, ctx->platform->hrc);
+    if(ctx)
+    {
+        /* don't do any special processing when in preview mode */
+        if (ctx->platform->fChildPreview || ctx->platform->closing)
+            return DefWindowProc(hwnd, message, wParam, lParam);
     }
 
-    GetSystemTime(&ctx->platform->clock1);
-    break;
-  case WM_PAINT:
-  case WM_ERASEBKGND:
-    if (ctx->draw_func) {
-      ctx->draw_func(ctx);
-      if (ctx->supported_apis & LARPSAVER_API_OPENGL) {
-        SwapBuffers(ctx->platform->hdc);
-      }
-      if (ctx->tick_func) {
-        GetSystemTime(&ctx->platform->clock2);
-        if ((ctx->platform->clock2.wMilliseconds -
-             ctx->platform->clock1.wMilliseconds) >= ctx->ms) {
-          ctx->tick_func(ctx);
-          GetSystemTime(&ctx->platform->clock1);
+    switch (message) {
+    case WM_NCCREATE:
+        return TRUE;
+    case WM_CREATE:
+        ctx = ((LPCREATESTRUCT)lParam)->lpCreateParams;
+        SetWindowLongPtr(hwnd, -21, ctx);
+
+        printf("WM_CREATE %p\n", ctx);
+
+        if (!ctx->platform->hwnd)
+        {
+            printf("setting hwnd\n");
+            ctx->platform->hwnd = hwnd;
         }
-      }
+
+        GetClientRect(hwnd, &ctx->platform->rect);
+        ctx->platform->width = ctx->platform->rect.right;
+        ctx->platform->height = ctx->platform->rect.bottom;
+
+        if (ctx->supported_apis & LARPSAVER_API_OPENGL) {
+            printf("setting up opengl\n");
+            ctx->platform->pfd.nSize = sizeof ctx->platform->pfd;
+            ctx->platform->pfd.nVersion = 1;
+            ctx->platform->pfd.dwFlags = PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+            ctx->platform->pfd.iPixelType = PFD_TYPE_RGBA;
+            ctx->platform->pfd.cColorBits = 24;
+
+            ctx->platform->hdc = GetDC(hwnd);
+
+            SetPixelFormat(ctx->platform->hdc,
+                ChoosePixelFormat(ctx->platform->hdc, &ctx->platform->pfd),
+                &ctx->platform->pfd);
+
+            ctx->platform->hrc = ctx->platform->wglCreateContext(ctx->platform->hdc);
+            ctx->platform->wglMakeCurrent(ctx->platform->hdc, ctx->platform->hrc);
+        }
+
+        GetSystemTime(&ctx->platform->clock1);
+        break;
+    case WM_CLOSE:
+        TerminateScreenSaver(hwnd, ctx);
+        /* do NOT pass this to DefWindowProc; it will terminate even if
+           an invalid password was given.
+         */
+        return 0;
+    case SCRM_VERIFYPW:
+        /* verify password or return TRUE if password checking is turned off */
+        if (ctx->platform->VerifyScreenSavePwd)
+            return ctx->platform->VerifyScreenSavePwd(hwnd);
+        else
+            return TRUE;
+    case WM_SETCURSOR:
+        if (ctx->platform->checking_pwd)
+            break;
+        SetCursor(NULL);
+        break;
+    case WM_NCACTIVATE:
+    case WM_ACTIVATE:
+    case WM_ACTIVATEAPP:
+        if (wParam != FALSE)
+            break;
+    case WM_MOUSEMOVE:
+    case WM_LBUTTONDOWN:
+    case WM_RBUTTONDOWN:
+    case WM_MBUTTONDOWN:
+    case WM_KEYDOWN:
+    case WM_SYSKEYDOWN:
+        /* try to terminate screen saver */
+        if (!ctx->platform->checking_pwd)
+        {
+            PostQuitMessage(0);
+            ctx->running = FALSE;
+        }
+        break;
+
+   
+    case WM_PAINT:
+    case WM_ERASEBKGND:
+            printf("draw\n");
+        if (ctx->draw_func) {
+            ctx->draw_func(ctx);
+        }
+        if (ctx->supported_apis & LARPSAVER_API_OPENGL) {
+            SwapBuffers(ctx->platform->hdc);
+        }
+        return (message == WM_ERASEBKGND);
+    case WM_NCDESTROY:
+        return 0;
+    case WM_DESTROY:
+        if (ctx->supported_apis & LARPSAVER_API_OPENGL) {
+            ctx->platform->wglMakeCurrent(NULL, NULL);
+            ctx->platform->wglDeleteContext(ctx->platform->hrc);
+        }
+        ReleaseDC(hwnd, ctx->platform->hdc);
+        break;
+    default:
+        //printf("unhandled msg %04X\n", message);
+        //break;
+        return 0;
     }
 
-    return (message == WM_ERASEBKGND);
-  case WM_SETCURSOR:
-    ShowCursor(0);
-    break;
-  case WM_ACTIVATE:
-    if (wParam != FALSE) {
-      break;
-    }
-  case WM_LBUTTONDOWN:
-  case WM_MBUTTONDOWN:
-  case WM_RBUTTONDOWN:
-  case WM_LBUTTONUP:
-  case WM_MBUTTONUP:
-  case WM_RBUTTONUP:
-  case WM_KEYDOWN:
-  case WM_MOUSEMOVE:
-    PostQuitMessage(0);
-    break;
-  case WM_DESTROY:
-    if (ctx->supported_apis & LARPSAVER_API_OPENGL) {
-      ctx->platform->wglMakeCurrent(NULL, NULL);
-      ctx->platform->wglDeleteContext(ctx->platform->hrc);
-    }
-    ReleaseDC(hwnd, ctx->platform->hdc);
-    break;
-  default:
-    return 0;
-  }
 
-  return DefScreenSaverProc(hwnd, message, wParam, lParam);
+  return DefWindowProc(hwnd, message, wParam, lParam);
 }
 
 BOOL ScreenSaverConfigureDialog(HWND hDlg, UINT message, WPARAM wParam,
@@ -309,95 +247,114 @@ BOOL ScreenSaverConfigureDialog(HWND hDlg, UINT message, WPARAM wParam,
 }
 BOOL RegisterDialogClasses(HANDLE hInst) { return TRUE; }
 
-static void LaunchConfig(void) {
-  /* FIXME: should this be called */
-  RegisterDialogClasses(ctx->platform->hMainInstance);
-  /* display configure dialog */
-  DialogBox(ctx->platform->hMainInstance,
+static void LaunchConfig(larpsaver_ctx* ctx) {
+   if (ctx)
+    {
+            /* FIXME: should this be called */
+            RegisterDialogClasses(ctx->platform->hMainInstance);
+        /* display configure dialog */
+        DialogBox(ctx->platform->hMainInstance,
             MAKEINTRESOURCE(DLG_SCRNSAVECONFIGURE), GetForegroundWindow(),
             (DLGPROC)ScreenSaverConfigureDialog);
+    }
 }
 
-larpsaver_platform *larpsaver_platform_init(int *supported_apis, int argc,
+void larpsaver_platform_init(larpsaver_ctx* ctx,  int argc,
                                             char **argv) {
   larpsaver_platform *plat = malloc(sizeof(struct larpsaver_platform_t));
   LPSTR p;
+  int i = 0;
   OSVERSIONINFO vi;
+
+  if (plat) {
+      memset(plat, 0, sizeof(*plat));
+
+      plat->wglLib = LoadLibrary("opengl32.dll");
+      if (plat->wglLib) {
+          ctx->supported_apis |= LARPSAVER_API_OPENGL;
+          plat->wglCreateContext =
+              (void*)GetProcAddress(plat->wglLib, "wglCreateContext");
+          plat->wglMakeCurrent =
+              (void*)GetProcAddress(plat->wglLib, "wglMakeCurrent");
+          plat->wglGetProcAddress =
+              (void*)GetProcAddress(plat->wglLib, "wglGetProcAddress");
+          plat->wglDeleteContext =
+              (void*)GetProcAddress(plat->wglLib, "wglDeleteContext");
+      }
+  }
+
+
+  ctx->platform = plat;
+
   /* initialize */
-  ctx->platform->hMainInstance = GetModuleHandle(0);
+  plat->hMainInstance = GetModuleHandle(0);
   vi.dwOSVersionInfoSize = sizeof(vi);
   GetVersionEx(&vi);
+  printf("%d args\n", argc);
 
-  /* parse arguments */
-  for (p = *argv; *p; p++) {
-    switch (*p) {
-    case 'S':
-    case 's':
+  /* on debug builds, start screensaver if no args */
+#ifdef _DEBUG
+  if (argc == 1) {
       /* start screen saver */
-      LaunchScreenSaver(NULL);
-
-    case 'P':
-    case 'p': {
-      /* start screen saver in preview window */
-      HWND hParent;
-      ctx->platform->fChildPreview = TRUE;
-      while (ISSPACE(*++p))
-        ;
-      hParent = (HWND)(unsigned long long)_toul(p);
-      if (hParent && IsWindow(hParent))
-        LaunchScreenSaver(hParent);
-    }
-      return 0;
-    case 'C':
-    case 'c':
-      /* display configure dialog */
-      LaunchConfig();
-      return 0;
-    case 'A':
-    case 'a': {
-      /* change screen saver password */
-      HWND hParent;
-      while (ISSPACE(*++p))
-        ;
-      hParent = (HWND)(unsigned long long)_toul(p);
-      if (!hParent || !IsWindow(hParent))
-        hParent = GetForegroundWindow();
-      ScreenSaverChangePassword(hParent);
-    }
-      return 0;
-    case '-':
-    case '/':
-    case ' ':
-    default:
-      break;
-    }
+              /* start screen saver */
+      LaunchScreenSaver(NULL,ctx, plat);
   }
-  LaunchConfig();
-  return 0;
-
-  if (plat) {
-    memset(plat, 0, sizeof(*plat));
+  else
+#endif
+  {
+      /* parse arguments */
+      for (i = 0; i < argc; i++) {
+          p = argv[i];
+          printf("arg %d: %s\n", i, p);
+          if (strcmp(p, "\\s") == 0) {
+              /* start screen saver */
+              LaunchScreenSaver(NULL, ctx, plat);
+              break;
+          }
+          if (strcmp(p, "\\p") == 0) {
+              /* start screen saver in preview window */
+              HWND hParent;
+              plat->fChildPreview = TRUE;
+              while (ISSPACE(*++p))
+                  ;
+              hParent = (HWND)(unsigned long long)_toul(p);
+              if (hParent && IsWindow(hParent))
+                  LaunchScreenSaver(hParent, ctx, plat);
+              break;
+          }
+          if (strcmp(p, "\\c") == 0) {
+              /* display configure dialog */
+              LaunchConfig(ctx);
+              break;
+          } if (strcmp(p, "\\a") == 0) {
+              /* start screen saver */
+              LaunchScreenSaver(NULL, ctx, plat);
+              /* change screen saver password */
+              HWND hParent;
+              while (ISSPACE(*++p))
+                  ;
+              hParent = (HWND)(unsigned long long)_toul(p);
+              if (!hParent || !IsWindow(hParent))
+                  hParent = GetForegroundWindow();
+              ScreenSaverChangePassword(hParent);
+              break;
+          }
+      }
   }
 
-  if (plat) {
-    plat->wglLib = LoadLibrary("opengl32.dll");
-    if (plat->wglLib) {
-      *supported_apis = (*supported_apis | LARPSAVER_API_OPENGL);
-      plat->wglCreateContext =
-          (void *)GetProcAddress(plat->wglLib, "wglCreateContext");
-      plat->wglMakeCurrent =
-          (void *)GetProcAddress(plat->wglLib, "wglMakeCurrent");
-      plat->wglGetProcAddress =
-          (void *)GetProcAddress(plat->wglLib, "wglGetProcAddress");
-      plat->wglDeleteContext =
-          (void *)GetProcAddress(plat->wglLib, "wglDeleteContext");
-    }
-  }
+
 
   return plat;
 }
 
-void larpsaver_platform_free(larpsaver_platform *plat) {}
+void larpsaver_platform_free(larpsaver_platform *plat) {
+    BOOL foo;
+    /* restore system */
+    if (plat->w95 && !plat->fChildPreview)
+        SystemParametersInfo(SPI_SCREENSAVERRUNNING, FALSE, &foo, 0);
+    FreeLibrary(plat->hPwdLib);
+    return;
+}
 
 void *larpsaver_get_proc_address(larpsaver_ctx *ctx, int api,
                                  const char *name) {
@@ -408,4 +365,32 @@ void *larpsaver_get_proc_address(larpsaver_ctx *ctx, int api,
     }
   }
   return NULL;
+}
+
+void larpsaver_loop(larpsaver_ctx* ctx) {
+    MSG msg = { 0 };
+
+    ctx->running = TRUE;
+    InvalidateRect(ctx->platform->hwnd, NULL, TRUE);
+
+
+     while (ctx->running)
+    {
+                while (PeekMessage(&msg, ctx->platform->hwnd, 0, 0, PM_REMOVE) == TRUE) {
+                    TranslateMessage(&msg);
+                    DispatchMessage(&msg);
+                }
+                InvalidateRect(ctx->platform->hwnd, NULL, FALSE);
+                UpdateWindow(ctx->platform->hwnd);
+
+            
+                if (ctx->tick_func) {
+                    GetSystemTime(&ctx->platform->clock2);
+                    if ((ctx->platform->clock2.wMilliseconds -
+                        ctx->platform->clock1.wMilliseconds) >= ctx->ms) {
+                        ctx->tick_func(ctx);
+                        GetSystemTime(&ctx->platform->clock1);
+                    }
+                }
+    }
 }
