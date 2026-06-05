@@ -2,7 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 
-larpsaver_ctx *ctx = NULL;
+/* This is horrible. We should just be using SetWindowLongPtr. Unfortunately
+ * uhhh Windows hates you and when we run on Win11 that fails :)  */
+static larpsaver_ctx *ctx = NULL;
 
 static int ISSPACE(char c) { return (c == ' ' || c == '\t'); }
 #define ISNUM(c) ((c) >= '0' && c <= '9')
@@ -213,37 +215,26 @@ LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
       ctx->running = 0;
     }
     return 0;
-  case WM_ERASEBKGND:
+  case WM_ERASEBKGND: {
+    PAINTSTRUCT ps;
+    HDC hdc = BeginPaint(hwnd, &ps);
+    HBRUSH brush = GetStockObject(BLACK_BRUSH);
+
+    FillRect(hdc, &ps.rcPaint, brush);
+    DeleteObject(brush);
+
+    EndPaint(hwnd, &ps);
+    return 1;
+  }
   case WM_PAINT:
     if (ctx) {
-      HBRUSH brush;
-      PAINTSTRUCT paint;
-      memset(&paint, 0, sizeof(PAINTSTRUCT));
-      ctx->platform->hdc = BeginPaint(hwnd, &paint);
-
-      /*
-      brush = GetStockObject(GRAY_BRUSH);
-      FillRect(ctx->platform->hdc, &paint.rcPaint, brush);
-      DeleteObject(brush);
-      */
-
-      if (ctx->supported_apis & LARPSAVER_API_OPENGL) {
-        ctx->platform->wglMakeCurrent(ctx->platform->hdc, ctx->platform->hrc);
-      }
-
       if (ctx->draw_func) {
-        // printf("draw\n");
         ctx->draw_func(ctx);
       }
 
-      if (ctx->supported_apis & LARPSAVER_API_OPENGL) {
-        ctx->platform->wglMakeCurrent(NULL, NULL);
-      }
-
       SwapBuffers(ctx->platform->hdc);
-      EndPaint(hwnd, &paint);
     }
-    return (message == WM_ERASEBKGND);
+    return 0;
   case WM_NCDESTROY:
     return 0;
   case WM_DESTROY:
@@ -254,7 +245,6 @@ LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
     ReleaseDC(hwnd, ctx->platform->hdc);
     break;
   default:
-    // return 0;
     break;
   }
 
