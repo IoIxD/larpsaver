@@ -1,7 +1,7 @@
 CC = wcc386 -bt=nt -q
 LD = wlink option quiet
 
-CFLAGS = -bd -i=../include -d_LARPSAVER
+CFLAGS = -i=../include -d_LARPSAVER
 LDFLAGS = system nt_dll
 EXE_CFLAGS = -i=../include
 EXE_LDFLAGS = system nt
@@ -16,7 +16,7 @@ larpsaver.lib: win32.obj larpsaver.obj
 	$(LD) $(LDFLAGS) name $@ file win32.obj file larpsaver.obj library opengl32.lib library gdi32.lib library user32.lib library advapi32.lib
 
 opengl_example.obj: ../examples/opengl_example.c
-	$(CC) $(CFLAGS) -fo=$@ ../examples/opengl_example.c
+	$(CC) $(EXE_CFLAGS) -fo=$@ -d_WIN32 ../examples/opengl_example.c
 
 win32.obj: ../src/platform/win32.c
 	$(CC) $(CFLAGS) -fo=$@ ../src/platform/win32.c

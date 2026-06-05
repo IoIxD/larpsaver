@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-static larpsaver_ctx* ctx = NULL;
+static larpsaver_ctx *ctx = NULL;
 
 static int ISSPACE(char c) { return (c == ' ' || c == '\t'); }
 #define ISNUM(c) ((c) >= '0' && c <= '9')
@@ -52,7 +52,6 @@ static void LaunchScreenSaver(HWND hParent, larpsaver_ctx *ctx,
   MSG msg;
   BOOL foo;
 
-
   /* don't allow other tasks to get into the foreground */
   if (platform->w95 && !platform->fChildPreview)
     SystemParametersInfo(SPI_SCREENSAVERRUNNING, TRUE, &foo, 0);
@@ -75,9 +74,10 @@ static void LaunchScreenSaver(HWND hParent, larpsaver_ctx *ctx,
   }
 
   /* create main screen saver window */
-  platform->hwnd = CreateWindowEx(hParent ? 0 : WS_EX_TOPMOST, CLASS_SCRNSAVE,
-                 TEXT("SCREENSAVER"), style, rc.left, rc.top, rc.right,
-                 rc.bottom, hParent, NULL, platform->hMainInstance, ctx);
+  platform->hwnd =
+      CreateWindowEx(hParent ? 0 : WS_EX_TOPMOST, CLASS_SCRNSAVE,
+                     TEXT("SCREENSAVER"), style, rc.left, rc.top, rc.right,
+                     rc.bottom, hParent, NULL, platform->hMainInstance, ctx);
 
   UpdateWindow(platform->hwnd);
   ShowWindow(platform->hwnd, 1);
@@ -133,8 +133,7 @@ LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
     ctx = ((LPCREATESTRUCT)lParam)->lpCreateParams;
     SetWindowLongPtr(hwnd, -21, (LONG)ctx);
 
-
-      ctx->platform->hwnd = hwnd;
+    ctx->platform->hwnd = hwnd;
 
     GetClientRect(hwnd, &ctx->platform->rect);
     ctx->platform->width = ctx->platform->rect.right;
@@ -173,7 +172,7 @@ LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
     else
       return TRUE;
   case WM_NCHITTEST:
-      return DefWindowProc(hwnd, message, wParam, lParam);
+    return DefWindowProc(hwnd, message, wParam, lParam);
   case WM_SETCURSOR:
     if (ctx->platform->checking_pwd)
       break;
@@ -182,22 +181,23 @@ LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
   case WM_NCACTIVATE:
   case WM_ACTIVATE:
   case WM_ACTIVATEAPP:
-      if (wParam != FALSE)
-          break;
-  case WM_MOUSEMOVE:
-      {
-          POINT pt;
-          GetCursorPos(&pt);
-          if (pt.x == ctx->platform->pt_orig.x && pt.y == ctx->platform->pt_orig.y)
-              break;
-          else GetCursorPos(&ctx->platform->pt_orig);
-      }
-      /* try to terminate screen saver */
-      if (!ctx->platform->checking_pwd) {
-          PostQuitMessage(0);
-          if (ctx->running > 0) --ctx->running;
-      }
-      return DefWindowProc(hwnd, message, wParam, lParam);
+    if (wParam != FALSE)
+      break;
+  case WM_MOUSEMOVE: {
+    POINT pt;
+    GetCursorPos(&pt);
+    if (pt.x == ctx->platform->pt_orig.x && pt.y == ctx->platform->pt_orig.y)
+      break;
+    else
+      GetCursorPos(&ctx->platform->pt_orig);
+  }
+    /* try to terminate screen saver */
+    if (!ctx->platform->checking_pwd) {
+      PostQuitMessage(0);
+      if (ctx->running > 0)
+        --ctx->running;
+    }
+    return DefWindowProc(hwnd, message, wParam, lParam);
   case WM_LBUTTONDOWN:
   case WM_RBUTTONDOWN:
   case WM_MBUTTONDOWN:
@@ -222,12 +222,12 @@ LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
     }
 
     if (ctx->tick_func) {
-        GetSystemTime(&ctx->platform->clock2);
-        if ((ctx->platform->clock2.wMilliseconds -
-            ctx->platform->clock1.wMilliseconds) >= ctx->ms) {
-            ctx->tick_func(ctx);
-            GetSystemTime(&ctx->platform->clock1);
-        }
+      GetSystemTime(&ctx->platform->clock2);
+      if ((ctx->platform->clock2.wMilliseconds -
+           ctx->platform->clock1.wMilliseconds) >= ctx->ms) {
+        ctx->tick_func(ctx);
+        GetSystemTime(&ctx->platform->clock1);
+      }
     }
 
     return (message == WM_ERASEBKGND);
@@ -241,7 +241,7 @@ LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
     ReleaseDC(hwnd, ctx->platform->hdc);
     break;
   default:
-     return 0;
+    return 0;
   }
 
   return DefWindowProc(hwnd, message, wParam, lParam);
@@ -273,7 +273,6 @@ void larpsaver_platform_init(larpsaver_ctx *_ctx, int argc, char **argv) {
 
   ctx = _ctx;
 
-
   if (plat) {
     memset(plat, 0, sizeof(*plat));
 
@@ -299,14 +298,10 @@ void larpsaver_platform_init(larpsaver_ctx *_ctx, int argc, char **argv) {
   GetVersionEx(&vi);
 
   /* on debug builds, start screensaver if no args */
-#ifdef _DEBUG
-  if (argc == 1) {
-    /* start screen saver */
+  if (argc <= 1) {
     /* start screen saver */
     LaunchScreenSaver(NULL, ctx, plat);
-  } else
-#endif
-  {
+  } else {
     /* parse arguments */
     for (i = 0; i < argc; i++) {
       p = argv[i];
@@ -332,10 +327,10 @@ void larpsaver_platform_init(larpsaver_ctx *_ctx, int argc, char **argv) {
         break;
       }
       if (strcmp(p, "\\a") == 0) {
+        HWND hParent;
         /* start screen saver */
         LaunchScreenSaver(NULL, ctx, plat);
         /* change screen saver password */
-        HWND hParent;
         while (ISSPACE(*++p))
           ;
         hParent = (HWND)(unsigned long long)_toul(p);
@@ -377,12 +372,12 @@ void larpsaver_loop(larpsaver_ctx *ctx) {
 
   while (ctx->running) {
     while (PeekMessage(&msg, ctx->platform->hwnd, 0, 0, PM_NOREMOVE)) {
-        GetMessage(&msg, ctx->platform->hwnd, 0, 0);
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
-        if (!ctx->running) {
-            break;
-        }
+      GetMessage(&msg, ctx->platform->hwnd, 0, 0);
+      TranslateMessage(&msg);
+      DispatchMessage(&msg);
+      if (!ctx->running) {
+        break;
+      }
     }
     UpdateWindow(ctx->platform->hwnd);
   }

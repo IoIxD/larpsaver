@@ -28,7 +28,7 @@ typedef struct larpsaver_ctx_t {
 
 larpsaver_ctx *larpsaver_ctx_new(int argc, char **argv);
 void larpsaver_ctx_free(larpsaver_ctx *ctx);
-void larpsaver_loop(larpsaver_ctx* ctx);
+void larpsaver_loop(larpsaver_ctx *ctx);
 
 /* Supported APIs that are found on the host machine at runtime. */
 typedef enum larpsaver_api_t {
@@ -43,8 +43,7 @@ typedef enum larpsaver_api_t {
 void *larpsaver_get_proc_address(larpsaver_ctx *ctx, int api, const char *name);
 
 #ifdef _LARPSAVER
-void larpsaver_platform_init(larpsaver_ctx* ctx, int argc,
-                                            char **argv);
+void larpsaver_platform_init(larpsaver_ctx *ctx, int argc, char **argv);
 void larpsaver_platform_free(larpsaver_platform *plat);
 
 #ifdef _WIN32
@@ -129,12 +128,10 @@ BOOL RegisterDialogClasses(HANDLE hInst);
 
 #define SCRM_VERIFYPW WM_APP
 
-void WINAPI ScreenSaverChangePassword(HWND hParent);
+void ScreenSaverChangePassword(HWND hParent);
 #endif
 
 #endif
-
-
 
 #ifdef __cplusplus
 }
