@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 
+larpsaver_ctx* ctx = NULL;
+
+
 static int ISSPACE(char c) { return (c == ' ' || c == '\t'); }
 #define ISNUM(c) ((c) >= '0' && c <= '9')
 static unsigned long _toul(const char *s) {
@@ -113,7 +116,6 @@ void ScreenSaverChangePassword(HWND hParent) {
 }
 
 LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
-  larpsaver_ctx *ctx = (larpsaver_ctx *)GetWindowLongPtr(hwnd, -21);
 
   if (!ctx && !(message == WM_NCCREATE || message == WM_CREATE ||
                 message == WM_NCCALCSIZE)) {
@@ -138,6 +140,7 @@ LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
     GetClientRect(hwnd, &ctx->platform->rect);
     ctx->platform->width = ctx->platform->rect.right;
     ctx->platform->height = ctx->platform->rect.bottom;
+
 
     if (ctx->supported_apis & LARPSAVER_API_OPENGL) {
       printf("setting up opengl\n");
@@ -237,7 +240,7 @@ LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
         ctx->platform->wglMakeCurrent(NULL, NULL);
       }
 
-      // SwapBuffers(ctx->platform->hdc);
+       SwapBuffers(ctx->platform->hdc);
       EndPaint(hwnd, &paint);
     }
     return (message == WM_ERASEBKGND);
@@ -276,11 +279,13 @@ static void LaunchConfig(larpsaver_ctx *ctx) {
   }
 }
 
-void larpsaver_platform_init(larpsaver_ctx *ctx, int argc, char **argv) {
+void larpsaver_platform_init(larpsaver_ctx *_ctx, int argc, char **argv) {
   larpsaver_platform *plat = malloc(sizeof(struct larpsaver_platform_t));
   LPSTR p;
   int i = 0;
   OSVERSIONINFO vi;
+
+  ctx = _ctx;
 
   if (plat) {
     memset(plat, 0, sizeof(*plat));
@@ -380,14 +385,24 @@ void larpsaver_loop(larpsaver_ctx *ctx) {
   ctx->running = 5;
 
   while (ctx->running) {
-    while (PeekMessage(&msg, ctx->platform->hwnd, 0, 0, PM_NOREMOVE)) {
-      GetMessage(&msg, ctx->platform->hwnd, 0, 0);
+    if (PeekMessage(&msg, ctx->platform->hwnd, 0, 0, PM_REMOVE)) {
+      //GetMessage(&msg, ctx->platform->hwnd, 0, 0);
       TranslateMessage(&msg);
       DispatchMessage(&msg);
       if (!ctx->running) {
         break;
       }
     }
+   /* if (ctx->tick_func) {
+        GetSystemTime(&ctx->platform->clock2);
+        if ((ctx->platform->clock2.wMilliseconds -
+            ctx->platform->clock1.wMilliseconds) >= ctx->ms) {
+            ctx->tick_func(ctx);
+            GetSystemTime(&ctx->platform->clock1);
+        }
+    }*/
+
+    InvalidateRect(ctx->platform->hwnd, NULL, 0);
     UpdateWindow(ctx->platform->hwnd);
   }
 }

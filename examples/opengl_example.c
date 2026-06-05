@@ -19,10 +19,16 @@ typedef struct my_userdata_t {
 static void draw(larpsaver_ctx *ctx) {
   my_userdata *userdata = ctx->userdata;
 
-  userdata->glClearColor((GLfloat)userdata->r, (GLfloat)userdata->g,
-                         (GLfloat)userdata->b, 1);
-  userdata->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  userdata->glFlush();
+  if(userdata)
+  {
+      if(userdata->glClearColor)
+        userdata->glClearColor((GLfloat)userdata->r, (GLfloat)userdata->g,
+          (GLfloat)userdata->b, 1);
+      if(userdata->glClear)
+          userdata->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      if(userdata->glFlush)
+          userdata->glFlush();
+  }
 }
 
 static void tick(larpsaver_ctx *ctx) {
