@@ -2,8 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-larpsaver_ctx* ctx = NULL;
-
+larpsaver_ctx *ctx = NULL;
 
 static int ISSPACE(char c) { return (c == ' ' || c == '\t'); }
 #define ISNUM(c) ((c) >= '0' && c <= '9')
@@ -141,14 +140,13 @@ LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
     ctx->platform->width = ctx->platform->rect.right;
     ctx->platform->height = ctx->platform->rect.bottom;
 
-
     if (ctx->supported_apis & LARPSAVER_API_OPENGL) {
       printf("setting up opengl\n");
       ctx->platform->pfd.nSize = sizeof ctx->platform->pfd;
       ctx->platform->pfd.nVersion = 1;
       ctx->platform->pfd.dwFlags = PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
       ctx->platform->pfd.iPixelType = PFD_TYPE_RGBA;
-      ctx->platform->pfd.cColorBits = 24;
+      ctx->platform->pfd.cColorBits = 32;
 
       ctx->platform->hdc = GetDC(hwnd);
 
@@ -223,16 +221,18 @@ LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
       memset(&paint, 0, sizeof(PAINTSTRUCT));
       ctx->platform->hdc = BeginPaint(hwnd, &paint);
 
+      /*
       brush = GetStockObject(GRAY_BRUSH);
       FillRect(ctx->platform->hdc, &paint.rcPaint, brush);
       DeleteObject(brush);
+      */
 
       if (ctx->supported_apis & LARPSAVER_API_OPENGL) {
         ctx->platform->wglMakeCurrent(ctx->platform->hdc, ctx->platform->hrc);
       }
 
       if (ctx->draw_func) {
-        printf("draw\n");
+        // printf("draw\n");
         ctx->draw_func(ctx);
       }
 
@@ -240,7 +240,7 @@ LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
         ctx->platform->wglMakeCurrent(NULL, NULL);
       }
 
-       SwapBuffers(ctx->platform->hdc);
+      SwapBuffers(ctx->platform->hdc);
       EndPaint(hwnd, &paint);
     }
     return (message == WM_ERASEBKGND);
@@ -373,6 +373,7 @@ void *larpsaver_get_proc_address(larpsaver_ctx *ctx, int api,
   if (ctx->supported_apis & api) {
     switch (api) {
     case LARPSAVER_API_OPENGL:
+      printf("%s => %p\n", name, ctx->platform->wglGetProcAddress(name));
       return ctx->platform->wglGetProcAddress(name);
     }
   }
@@ -386,21 +387,21 @@ void larpsaver_loop(larpsaver_ctx *ctx) {
 
   while (ctx->running) {
     if (PeekMessage(&msg, ctx->platform->hwnd, 0, 0, PM_REMOVE)) {
-      //GetMessage(&msg, ctx->platform->hwnd, 0, 0);
+      // GetMessage(&msg, ctx->platform->hwnd, 0, 0);
       TranslateMessage(&msg);
       DispatchMessage(&msg);
       if (!ctx->running) {
         break;
       }
     }
-   /* if (ctx->tick_func) {
-        GetSystemTime(&ctx->platform->clock2);
-        if ((ctx->platform->clock2.wMilliseconds -
-            ctx->platform->clock1.wMilliseconds) >= ctx->ms) {
-            ctx->tick_func(ctx);
-            GetSystemTime(&ctx->platform->clock1);
-        }
-    }*/
+    if (ctx->tick_func) {
+      GetSystemTime(&ctx->platform->clock2);
+      if ((ctx->platform->clock2.wMilliseconds -
+           ctx->platform->clock1.wMilliseconds) >= ctx->ms) {
+        ctx->tick_func(ctx);
+        GetSystemTime(&ctx->platform->clock1);
+      }
+    }
 
     InvalidateRect(ctx->platform->hwnd, NULL, 0);
     UpdateWindow(ctx->platform->hwnd);

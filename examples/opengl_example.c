@@ -3,13 +3,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "glad/glad.h"
 #include <math.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+#include <GL/gl.h>
+
 typedef struct my_userdata_t {
-  PFNGLCLEARCOLORPROC glClearColor;
-  PFNGLCLEARPROC glClear;
-  PFNGLFLUSHPROC glFlush;
   double r;
   double g;
   double b;
@@ -19,15 +20,11 @@ typedef struct my_userdata_t {
 static void draw(larpsaver_ctx *ctx) {
   my_userdata *userdata = ctx->userdata;
 
-  if(userdata)
-  {
-      if(userdata->glClearColor)
-        userdata->glClearColor((GLfloat)userdata->r, (GLfloat)userdata->g,
-          (GLfloat)userdata->b, 1);
-      if(userdata->glClear)
-          userdata->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-      if(userdata->glFlush)
-          userdata->glFlush();
+  if (userdata) {
+    glClearColor((GLfloat)userdata->r, (GLfloat)userdata->g,
+                 (GLfloat)userdata->b, 1);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glFlush();
   }
 }
 
@@ -53,12 +50,6 @@ int main(int argc, char **argv) {
   ctx->ms = 250;
 
   if (ctx->supported_apis & LARPSAVER_API_OPENGL) {
-    userdata->glClearColor =
-        larpsaver_get_proc_address(ctx, LARPSAVER_API_OPENGL, "glClearColor");
-    userdata->glClear =
-        larpsaver_get_proc_address(ctx, LARPSAVER_API_OPENGL, "glClear");
-    userdata->glFlush =
-        larpsaver_get_proc_address(ctx, LARPSAVER_API_OPENGL, "glFlush");
   } else {
     /* requires opengl */
     exit(0);

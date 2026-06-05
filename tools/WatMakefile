@@ -10,7 +10,7 @@ all: larpsaver.lib
 examples: opengl_example.exe
 
 opengl_example.exe: win32.obj larpsaver.obj opengl_example.obj
-	$(LD) $(EXE_LDFLAGS) name $@ file opengl_example.obj file win32.obj file larpsaver.obj
+	$(LD) $(EXE_LDFLAGS) name $@ library opengl32.lib file opengl_example.obj file win32.obj file larpsaver.obj
 
 larpsaver.lib: win32.obj larpsaver.obj
 	$(LD) $(LDFLAGS) name $@ file win32.obj file larpsaver.obj library opengl32.lib library gdi32.lib library user32.lib library advapi32.lib
