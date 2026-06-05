@@ -3,7 +3,7 @@ LD = wlink option quiet
 
 CFLAGS = -i=../include -d_LARPSAVER
 LDFLAGS = system nt_dll
-EXE_CFLAGS = -i=../include
+EXE_CFLAGS = -bg -i=../include
 EXE_LDFLAGS = system nt
 
 all: larpsaver.lib

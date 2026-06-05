@@ -22,7 +22,8 @@ static unsigned long _toul(const char *s) {
   return res;
 }
 
-LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
+LRESULT WINAPI ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam,
+                               LPARAM lParam);
 
 /*
   Register screen saver window class and call user
@@ -102,7 +103,7 @@ static void TerminateScreenSaver(HWND hWnd, larpsaver_ctx *ctx) {
     GetCursorPos(&ctx->platform->pt_orig); /* if not: get new mouse position */
 }
 
-void ScreenSaverChangePassword(HWND hParent) {
+void WINAPI ScreenSaverChangePassword(HWND hParent) {
   /* load Master Password Router (MPR) */
   HINSTANCE hMpr = LoadLibrary(TEXT("MPR.DLL"));
 
@@ -116,7 +117,8 @@ void ScreenSaverChangePassword(HWND hParent) {
   }
 }
 
-LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+LRESULT WINAPI ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam,
+                               LPARAM lParam) {
 
   if (!ctx && !(message == WM_NCCREATE || message == WM_CREATE ||
                 message == WM_NCCALCSIZE)) {
@@ -256,7 +258,7 @@ BOOL ScreenSaverConfigureDialog(HWND hDlg, UINT message, WPARAM wParam,
   /* TODO: how do we do a configure dialog? */
   return FALSE;
 }
-BOOL RegisterDialogClasses(HANDLE hInst) { return TRUE; }
+BOOL WINAPI RegisterDialogClasses(HANDLE hInst) { return TRUE; }
 
 static void LaunchConfig(larpsaver_ctx *ctx) {
   if (ctx) {
