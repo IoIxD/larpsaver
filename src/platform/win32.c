@@ -224,7 +224,7 @@ LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
     DeleteObject(brush);
 
     EndPaint(hwnd, &ps);
-    return 1;
+    break;
   }
   case WM_PAINT:
     if (ctx) {
@@ -309,12 +309,12 @@ void larpsaver_platform_init(larpsaver_ctx *_ctx, int argc, char **argv) {
     /* parse arguments */
     for (i = 0; i < argc; i++) {
       p = argv[i];
-      if (strcmp(p, "\\s") == 0) {
+      if (strcmp(p, "s") == 0) {
         /* start screen saver */
         LaunchScreenSaver(NULL, ctx, plat);
         break;
       }
-      if (strcmp(p, "\\p") == 0) {
+      if (strcmp(p, "p") == 0) {
         /* start screen saver in preview window */
         HWND hParent;
         plat->fChildPreview = TRUE;
@@ -325,12 +325,12 @@ void larpsaver_platform_init(larpsaver_ctx *_ctx, int argc, char **argv) {
           LaunchScreenSaver(hParent, ctx, plat);
         break;
       }
-      if (strcmp(p, "\\c") == 0) {
+      if (strcmp(p, "c") == 0) {
         /* display configure dialog */
         LaunchConfig(ctx);
         break;
       }
-      if (strcmp(p, "\\a") == 0) {
+      if (strcmp(p, "a") == 0) {
         HWND hParent;
         /* start screen saver */
         LaunchScreenSaver(NULL, ctx, plat);
