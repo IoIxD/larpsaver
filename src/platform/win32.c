@@ -2,8 +2,6 @@
 #include <stdio.h>
 #include <string.h>
 
-static larpsaver_ctx *ctx = NULL;
-
 static int ISSPACE(char c) { return (c == ' ' || c == '\t'); }
 #define ISNUM(c) ((c) >= '0' && c <= '9')
 static unsigned long _toul(const char *s) {
@@ -115,6 +113,8 @@ void ScreenSaverChangePassword(HWND hParent) {
 }
 
 LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+  larpsaver_ctx *ctx = (larpsaver_ctx *)GetWindowLongPtr(hwnd, -21);
+
   if (!ctx && !(message == WM_NCCREATE || message == WM_CREATE ||
                 message == WM_NCCALCSIZE)) {
     return DefWindowProc(hwnd, message, wParam, lParam);
@@ -212,24 +212,34 @@ LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
       ctx->running = 0;
     }
     return 0;
-  case WM_PAINT:
   case WM_ERASEBKGND:
-    if (ctx->draw_func) {
-      ctx->draw_func(ctx);
-    }
-    if (ctx->supported_apis & LARPSAVER_API_OPENGL) {
-      SwapBuffers(ctx->platform->hdc);
-    }
+  case WM_PAINT:
+    if (ctx) {
+      HBRUSH brush;
+      PAINTSTRUCT paint;
+      memset(&paint, 0, sizeof(PAINTSTRUCT));
+      ctx->platform->hdc = BeginPaint(hwnd, &paint);
 
-    if (ctx->tick_func) {
-      GetSystemTime(&ctx->platform->clock2);
-      if ((ctx->platform->clock2.wMilliseconds -
-           ctx->platform->clock1.wMilliseconds) >= ctx->ms) {
-        ctx->tick_func(ctx);
-        GetSystemTime(&ctx->platform->clock1);
+      brush = GetStockObject(GRAY_BRUSH);
+      FillRect(ctx->platform->hdc, &paint.rcPaint, brush);
+      DeleteObject(brush);
+
+      if (ctx->supported_apis & LARPSAVER_API_OPENGL) {
+        ctx->platform->wglMakeCurrent(ctx->platform->hdc, ctx->platform->hrc);
       }
-    }
 
+      if (ctx->draw_func) {
+        printf("draw\n");
+        ctx->draw_func(ctx);
+      }
+
+      if (ctx->supported_apis & LARPSAVER_API_OPENGL) {
+        ctx->platform->wglMakeCurrent(NULL, NULL);
+      }
+
+      // SwapBuffers(ctx->platform->hdc);
+      EndPaint(hwnd, &paint);
+    }
     return (message == WM_ERASEBKGND);
   case WM_NCDESTROY:
     return 0;
@@ -241,7 +251,8 @@ LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
     ReleaseDC(hwnd, ctx->platform->hdc);
     break;
   default:
-    return 0;
+    // return 0;
+    break;
   }
 
   return DefWindowProc(hwnd, message, wParam, lParam);
@@ -265,13 +276,11 @@ static void LaunchConfig(larpsaver_ctx *ctx) {
   }
 }
 
-void larpsaver_platform_init(larpsaver_ctx *_ctx, int argc, char **argv) {
+void larpsaver_platform_init(larpsaver_ctx *ctx, int argc, char **argv) {
   larpsaver_platform *plat = malloc(sizeof(struct larpsaver_platform_t));
   LPSTR p;
   int i = 0;
   OSVERSIONINFO vi;
-
-  ctx = _ctx;
 
   if (plat) {
     memset(plat, 0, sizeof(*plat));

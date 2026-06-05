@@ -22,3 +22,9 @@ win32.obj: ../src/platform/win32.c
 	$(CC) $(CFLAGS) -fo=$@ ../src/platform/win32.c
 larpsaver.obj: ../src/larpsaver.c
 	$(CC) $(CFLAGS) -fo=$@ ../src/larpsaver.c
+
+clean: .SYMBOLIC
+    %erase win32.obj
+    %erase larpsaver.obj
+    %erase opengl_example.obj
+    %erase opengl_example.exe

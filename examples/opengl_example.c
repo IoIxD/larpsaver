@@ -9,6 +9,7 @@
 typedef struct my_userdata_t {
   PFNGLCLEARCOLORPROC glClearColor;
   PFNGLCLEARPROC glClear;
+  PFNGLFLUSHPROC glFlush;
   double r;
   double g;
   double b;
@@ -21,6 +22,7 @@ static void draw(larpsaver_ctx *ctx) {
   userdata->glClearColor((GLfloat)userdata->r, (GLfloat)userdata->g,
                          (GLfloat)userdata->b, 1);
   userdata->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  userdata->glFlush();
 }
 
 static void tick(larpsaver_ctx *ctx) {
@@ -49,6 +51,8 @@ int main(int argc, char **argv) {
         larpsaver_get_proc_address(ctx, LARPSAVER_API_OPENGL, "glClearColor");
     userdata->glClear =
         larpsaver_get_proc_address(ctx, LARPSAVER_API_OPENGL, "glClear");
+    userdata->glFlush =
+        larpsaver_get_proc_address(ctx, LARPSAVER_API_OPENGL, "glFlush");
   } else {
     /* requires opengl */
     exit(0);

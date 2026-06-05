@@ -93,6 +93,7 @@ struct larpsaver_platform_t {
   int width;
   int height;
   PIXELFORMATDESCRIPTOR pfd;
+  int pixelFormat;
   SYSTEMTIME clock1;
   SYSTEMTIME clock2;
 
@@ -114,21 +115,25 @@ struct larpsaver_platform_t {
   VERIFYPWDPROC VerifyScreenSavePwd;
 
   HMODULE wglLib;
-  HGLRC (*wglCreateContext)(HDC);
-  void (*wglMakeCurrent)(HDC, HGLRC);
-  void *(*wglGetProcAddress)(LPCSTR);
-  void (*wglDeleteContext)(HGLRC);
+  HGLRC(WINAPI *wglCreateContext)(HDC);
+  void(WINAPI *wglMakeCurrent)(HDC, HGLRC);
+  void *(WINAPI *wglGetProcAddress)(LPCSTR);
+  void(WINAPI *wglDeleteContext)(HGLRC);
+  BOOL(WINAPI *wglSwapLayerBuffers)(HDC unnamedParam1, UINT unnamedParam2);
+
+  HMODULE dwmLib;
+  HRESULT(WINAPI *DwmFlush)(void);
+  HRESULT (*WINAPI DwmIsCompositionEnabled)(BOOL *pfEnabled);
 };
 
-LRESULT ScreenSaverProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+LRESULT WINAPI ScreenSaverProc(HWND hWnd, UINT message, WPARAM wParam,
+                               LPARAM lParam);
 
-BOOL ScreenSaverConfigureDialog(HWND hDlg, UINT message, WPARAM wParam,
-                                LPARAM lParam);
-BOOL RegisterDialogClasses(HANDLE hInst);
+BOOL WINAPI RegisterDialogClasses(HANDLE hInst);
 
 #define SCRM_VERIFYPW WM_APP
 
-void ScreenSaverChangePassword(HWND hParent);
+void WINAPI ScreenSaverChangePassword(HWND hParent);
 #endif
 
 #endif
