@@ -1,3 +1,11 @@
 /out
 /.vs
+.cache
 /build
+
+*.o
+*.obj
+*.err
+*.lib
+*.dll
+*.exe
