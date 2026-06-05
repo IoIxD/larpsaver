@@ -2,12 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-larpsaver_ctx *larpsaver_ctx_new(int argc, char **argv) {
+larpsaver_ctx *larpsaver_ctx_new(void) {
   larpsaver_ctx *ctx = malloc(sizeof(struct larpsaver_ctx_t));
 
   if (ctx) {
     memset(ctx, 0, sizeof(*ctx));
-    larpsaver_platform_init(ctx, argc, argv);
+    larpsaver_platform_init(ctx);
   }
 
   return ctx;

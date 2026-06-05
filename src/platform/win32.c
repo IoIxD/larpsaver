@@ -269,11 +269,92 @@ static void LaunchConfig(larpsaver_ctx *ctx) {
   }
 }
 
-void larpsaver_platform_init(larpsaver_ctx *_ctx, int argc, char **argv) {
+static PCHAR *windows_get_command_line(ULONG *argc) {
+  /* GetCommandLine -> args code curtosey of
+   * https://alter.org.ua/en/docs/win/args/index.php */
+  PCHAR *argv;
+  PCHAR _argv;
+  ULONG len;
+  ULONG _argc;
+  CHAR a;
+  ULONG i, j;
+  PCHAR CmdLine = GetCommandLineA();
+
+  BOOLEAN in_QM;
+  BOOLEAN in_TEXT;
+  BOOLEAN in_SPACE;
+
+  len = strlen(CmdLine);
+  i = ((len + 2) / 2) * sizeof(PVOID) + sizeof(PVOID);
+
+  argv = (PCHAR *)GlobalAlloc(GMEM_FIXED, i + (len + 2) * sizeof(CHAR));
+
+  _argv = (PCHAR)(((PUCHAR)argv) + i);
+
+  _argc = 0;
+  argv[_argc] = _argv;
+  in_QM = FALSE;
+  in_TEXT = FALSE;
+  in_SPACE = TRUE;
+  i = 0;
+  j = 0;
+
+  while ((a = CmdLine[i])) {
+    if (in_QM) {
+      if (a == '\"') {
+        in_QM = FALSE;
+      } else {
+        _argv[j] = a;
+        j++;
+      }
+    } else {
+      switch (a) {
+      case '\"':
+        in_QM = TRUE;
+        in_TEXT = TRUE;
+        if (in_SPACE) {
+          argv[_argc] = _argv + j;
+          _argc++;
+        }
+        in_SPACE = FALSE;
+        break;
+      case ' ':
+      case '\t':
+      case '\n':
+      case '\r':
+        if (in_TEXT) {
+          _argv[j] = '\0';
+          j++;
+        }
+        in_TEXT = FALSE;
+        in_SPACE = TRUE;
+        break;
+      default:
+        in_TEXT = TRUE;
+        if (in_SPACE) {
+          argv[_argc] = _argv + j;
+          _argc++;
+        }
+        _argv[j] = a;
+        j++;
+        in_SPACE = FALSE;
+        break;
+      }
+    }
+    i++;
+  }
+  _argv[j] = '\0';
+  *argc = _argc;
+  return argv;
+}
+
+void larpsaver_platform_init(larpsaver_ctx *_ctx) {
   larpsaver_platform *plat = malloc(sizeof(struct larpsaver_platform_t));
   LPSTR p;
   int i = 0;
   OSVERSIONINFO vi;
+  ULONG argc;
+  PCHAR *argv = windows_get_command_line(&argc);
 
   ctx = _ctx;
 

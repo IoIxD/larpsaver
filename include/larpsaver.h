@@ -26,9 +26,19 @@ typedef struct larpsaver_ctx_t {
   int running;
 } larpsaver_ctx;
 
-larpsaver_ctx *larpsaver_ctx_new(int argc, char **argv);
+/* Create a new larpsaver context, passing the command line args in to be parsed
+ */
+larpsaver_ctx *larpsaver_ctx_new(void);
+/* Free the larpsaver context */
 void larpsaver_ctx_free(larpsaver_ctx *ctx);
+/* Start a larpsaver context loop */
 void larpsaver_loop(larpsaver_ctx *ctx);
+
+#ifdef _WIN32
+/* Create a new larpsaver context (special version for WinMain that uses
+ * GetCommandLine) */
+larpsaver_ctx *larpsaver_ctx_new_winmain(void);
+#endif
 
 /* Supported APIs that are found on the host machine at runtime. */
 typedef enum larpsaver_api_t {
@@ -43,7 +53,7 @@ typedef enum larpsaver_api_t {
 void *larpsaver_get_proc_address(larpsaver_ctx *ctx, int api, const char *name);
 
 #ifdef _LARPSAVER
-void larpsaver_platform_init(larpsaver_ctx *ctx, int argc, char **argv);
+void larpsaver_platform_init(larpsaver_ctx *ctx);
 void larpsaver_platform_free(larpsaver_platform *plat);
 
 #ifdef _WIN32
