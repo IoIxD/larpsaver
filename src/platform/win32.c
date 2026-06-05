@@ -443,14 +443,17 @@ void larpsaver_platform_free(larpsaver_platform *plat) {
 
 void *larpsaver_get_proc_address(larpsaver_ctx *ctx, int api,
                                  const char *name) {
+  void *func = NULL;
   if (ctx->supported_apis & api) {
     switch (api) {
     case LARPSAVER_API_OPENGL:
-      printf("%s => %p\n", name, ctx->platform->wglGetProcAddress(name));
-      return ctx->platform->wglGetProcAddress(name);
+      if ((func = ctx->platform->wglGetProcAddress(name)) == NULL) {
+        func = GetProcAddress(ctx->platform->wglLib, name);
+      }
+      break;
     }
   }
-  return NULL;
+  return func;
 }
 
 void larpsaver_loop(larpsaver_ctx *ctx) {

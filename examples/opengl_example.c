@@ -5,26 +5,16 @@
 
 #include <math.h>
 
-/* currently broken */
-#define DYNLOAD 0
-
-#if DYNLOAD
-#include "glad/glad.h"
-#else
-
-/* make watcom not shit itself */
 #ifdef _WIN32
 #include <windows.h>
 #endif
-#include <GL/gl.h>
-#endif
+
+#include "glad/glad.h"
 
 typedef struct my_userdata_t {
-#if DYNLOAD
   PFNGLCLEARCOLORPROC glClearColor;
   PFNGLCLEARPROC glClear;
   PFNGLFLUSHPROC glFlush;
-#endif
   double r;
   double g;
   double b;
@@ -34,7 +24,6 @@ typedef struct my_userdata_t {
 static void draw(larpsaver_ctx *ctx) {
   my_userdata *userdata = ctx->userdata;
 
-#if DYNLOAD
   if (userdata) {
     if (userdata->glClearColor)
       userdata->glClearColor((GLfloat)userdata->r, (GLfloat)userdata->g,
@@ -44,12 +33,6 @@ static void draw(larpsaver_ctx *ctx) {
     if (userdata->glFlush)
       userdata->glFlush();
   }
-#else
-  glClearColor((GLfloat)userdata->r, (GLfloat)userdata->g, (GLfloat)userdata->b,
-               1);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  glFlush();
-#endif
 }
 
 static void tick(larpsaver_ctx *ctx) {
@@ -63,8 +46,8 @@ static void tick(larpsaver_ctx *ctx) {
 }
 
 #ifdef _WIN32
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
-                   LPSTR lpCmdLine, int nShowCmd) {
+int WINAPI WinMain(HINSTANCE _hInst, HINSTANCE _hPrevInst, LPSTR _lpCmdLine,
+                   int _nShowCmd) {
 #else
 int main(int argc, char **argv) {
 #endif
@@ -79,14 +62,12 @@ int main(int argc, char **argv) {
   ctx->ms = 250;
 
   if (ctx->supported_apis & LARPSAVER_API_OPENGL) {
-#if DYNLOAD
     userdata->glClearColor =
         larpsaver_get_proc_address(ctx, LARPSAVER_API_OPENGL, "glClearColor");
     userdata->glClear =
         larpsaver_get_proc_address(ctx, LARPSAVER_API_OPENGL, "glClear");
     userdata->glFlush =
         larpsaver_get_proc_address(ctx, LARPSAVER_API_OPENGL, "glFlush");
-#endif
   } else {
     /* requires opengl */
     exit(0);
