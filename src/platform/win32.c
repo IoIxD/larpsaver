@@ -224,7 +224,7 @@ LRESULT ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
     DeleteObject(brush);
 
     EndPaint(hwnd, &ps);
-    break;
+    return 1;
   }
   case WM_PAINT:
     if (ctx) {
