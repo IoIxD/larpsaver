@@ -2,9 +2,6 @@
 #include <stdio.h>
 #include <string.h>
 
-/* This is horrible. We should just be using SetWindowLongPtr. Unfortunately
- * uhhh Windows hates you and when we run on Win11 that fails :)  */
-static larpsaver_ctx *ctx = NULL;
 
 static int ISSPACE(char c) { return (c == ' ' || c == '\t'); }
 #define ISNUM(c) ((c) >= '0' && c <= '9')
@@ -72,15 +69,16 @@ static void LaunchScreenSaver(HWND hParent, larpsaver_ctx *ctx,
     style = WS_CHILD;
     GetClientRect(hParent, &rc);
   } else {
-    style = WS_POPUP | WS_VISIBLE;
+    style = WS_POPUP;
     GetClientRect(GetDesktopWindow(), &rc);
   }
 
   /* create main screen saver window */
   platform->hwnd =
-      CreateWindowEx(hParent ? 0 : WS_EX_TOPMOST, CLASS_SCRNSAVE,
+      CreateWindowEx(0, CLASS_SCRNSAVE,
                      TEXT("SCREENSAVER"), style, rc.left, rc.top, rc.right,
                      rc.bottom, hParent, NULL, platform->hMainInstance, ctx);
+  SetWindowLongPtr(platform->hwnd, GWLP_USERDATA, ctx);
 
   UpdateWindow(platform->hwnd);
   ShowWindow(platform->hwnd, 1);
@@ -119,11 +117,7 @@ void WINAPI ScreenSaverChangePassword(HWND hParent) {
 
 LRESULT WINAPI ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam,
                                LPARAM lParam) {
-
-  if (!ctx && !(message == WM_NCCREATE || message == WM_CREATE ||
-                message == WM_NCCALCSIZE)) {
-    return DefWindowProc(hwnd, message, wParam, lParam);
-  }
+  larpsaver_ctx* ctx = (larpsaver_ctx*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 
   if (ctx) {
     /* don't do any special processing when in preview mode */
@@ -135,9 +129,7 @@ LRESULT WINAPI ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam,
   case WM_NCCREATE:
     return TRUE;
   case WM_CREATE:
-    ctx = ((LPCREATESTRUCT)lParam)->lpCreateParams;
-    SetWindowLongPtr(hwnd, -21, (LONG)ctx);
-
+    ctx = (larpsaver_ctx*)((LPCREATESTRUCT)lParam)->lpCreateParams;
     ctx->platform->hwnd = hwnd;
 
     GetClientRect(hwnd, &ctx->platform->rect);
@@ -350,7 +342,7 @@ static PCHAR *windows_get_command_line(ULONG *argc) {
   return argv;
 }
 
-void larpsaver_platform_init(larpsaver_ctx *_ctx) {
+void larpsaver_platform_init(larpsaver_ctx *ctx) {
   larpsaver_platform *plat = malloc(sizeof(struct larpsaver_platform_t));
   LPSTR p;
   int i = 0;
@@ -358,7 +350,6 @@ void larpsaver_platform_init(larpsaver_ctx *_ctx) {
   ULONG argc;
   PCHAR *argv = windows_get_command_line(&argc);
 
-  ctx = _ctx;
 
   if (plat) {
     memset(plat, 0, sizeof(*plat));
