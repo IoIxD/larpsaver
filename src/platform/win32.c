@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <string.h>
 
-
 static int ISSPACE(char c) { return (c == ' ' || c == '\t'); }
 #define ISNUM(c) ((c) >= '0' && c <= '9')
 static unsigned long _toul(const char *s) {
@@ -74,14 +73,22 @@ static void LaunchScreenSaver(HWND hParent, larpsaver_ctx *ctx,
   }
 
   /* create main screen saver window */
-  platform->hwnd =
-      CreateWindowEx(0, CLASS_SCRNSAVE,
-                     TEXT("SCREENSAVER"), style, rc.left, rc.top, rc.right,
-                     rc.bottom, hParent, NULL, platform->hMainInstance, ctx);
-  SetWindowLongPtr(platform->hwnd, GWLP_USERDATA, ctx);
+  platform->hwnd = CreateWindowEx(0, CLASS_SCRNSAVE, TEXT("SCREENSAVER"), style,
+                                  rc.left, rc.top, rc.right, rc.bottom, hParent,
+                                  NULL, platform->hMainInstance, ctx);
+  SetWindowLongPtr(platform->hwnd, GWLP_USERDATA, (LONG_PTR)ctx);
 
   UpdateWindow(platform->hwnd);
   ShowWindow(platform->hwnd, 1);
+
+  /*
+   * If we're under a release build, make this window topmost.
+   * Don't do it under debug builds because it fucks with the debugger, etc.
+   */
+#ifndef _DEBUG
+  SetWindowPos(platform->hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+               SWP_NOMOVE | SWP_NOSIZE);
+#endif
 }
 static void TerminateScreenSaver(HWND hWnd, larpsaver_ctx *ctx) {
   /* don't allow recursion */
@@ -117,7 +124,7 @@ void WINAPI ScreenSaverChangePassword(HWND hParent) {
 
 LRESULT WINAPI ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam,
                                LPARAM lParam) {
-  larpsaver_ctx* ctx = (larpsaver_ctx*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+  larpsaver_ctx *ctx = (larpsaver_ctx *)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 
   if (ctx) {
     /* don't do any special processing when in preview mode */
@@ -129,7 +136,7 @@ LRESULT WINAPI ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam,
   case WM_NCCREATE:
     return TRUE;
   case WM_CREATE:
-    ctx = (larpsaver_ctx*)((LPCREATESTRUCT)lParam)->lpCreateParams;
+    ctx = (larpsaver_ctx *)((LPCREATESTRUCT)lParam)->lpCreateParams;
     ctx->platform->hwnd = hwnd;
 
     GetClientRect(hwnd, &ctx->platform->rect);
@@ -349,7 +356,6 @@ void larpsaver_platform_init(larpsaver_ctx *ctx) {
   OSVERSIONINFO vi;
   ULONG argc;
   PCHAR *argv = windows_get_command_line(&argc);
-
 
   if (plat) {
     memset(plat, 0, sizeof(*plat));
