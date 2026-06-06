@@ -389,12 +389,12 @@ void larpsaver_platform_init(larpsaver_ctx *ctx) {
     /* parse arguments */
     for (i = 0; i < argc; i++) {
       p = argv[i];
-      if (strcmp(p, "s") == 0) {
+      if (strcmp(p, "\\s") == 0) {
         /* start screen saver */
         LaunchScreenSaver(NULL, ctx, plat);
         break;
       }
-      if (strcmp(p, "p") == 0) {
+      if (strcmp(p, "\\p") == 0) {
         /* start screen saver in preview window */
         HWND hParent;
         plat->fChildPreview = TRUE;
@@ -405,12 +405,12 @@ void larpsaver_platform_init(larpsaver_ctx *ctx) {
           LaunchScreenSaver(hParent, ctx, plat);
         break;
       }
-      if (strcmp(p, "c") == 0) {
+      if (strcmp(p, "\\c") == 0) {
         /* display configure dialog */
         LaunchConfig(ctx);
         break;
       }
-      if (strcmp(p, "a") == 0) {
+      if (strcmp(p, "\\a") == 0) {
         HWND hParent;
         /* start screen saver */
         LaunchScreenSaver(NULL, ctx, plat);
