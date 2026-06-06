@@ -4,12 +4,11 @@
 extern "C" {
 #endif
 
-typedef struct larpsaver_platform_t larpsaver_platform;
-
+/* Modifiable context pertaining to larpsaver */
 typedef struct larpsaver_ctx_t {
   /* Internal platform data. Define _LARPSAVER before including larpsaver.h to
    * access*/
-  larpsaver_platform *platform;
+  struct larpsaver_platform_t *platform;
   /* Userdata */
   void *userdata;
   /* Interval at which larpsaver_tick should be called. Defaults to zero.*/
@@ -26,12 +25,9 @@ typedef struct larpsaver_ctx_t {
   int running;
 } larpsaver_ctx;
 
-/* Create a new larpsaver context */
-larpsaver_ctx *larpsaver_ctx_new(void);
-/* Free the larpsaver context */
-void larpsaver_ctx_free(larpsaver_ctx *ctx);
-/* Start a larpsaver context loop */
-void larpsaver_loop(larpsaver_ctx *ctx);
+/* Entry point for larpsaver screensavers. Required to implement from your
+ * program. */
+extern void larpsaver_entry(larpsaver_ctx *ctx);
 
 /* Supported APIs that are found on the host machine at runtime. */
 typedef enum larpsaver_api_t {
@@ -47,7 +43,8 @@ void *larpsaver_get_proc_address(larpsaver_ctx *ctx, int api, const char *name);
 
 #ifdef _LARPSAVER
 void larpsaver_platform_init(larpsaver_ctx *ctx);
-void larpsaver_platform_free(larpsaver_platform *plat);
+void larpsaver_platform_free(larpsaver_ctx *ctx);
+void larpsaver_platform_loop(larpsaver_ctx *ctx);
 
 #ifdef _WIN32
 #include <windows.h>
@@ -129,14 +126,7 @@ struct larpsaver_platform_t {
   HRESULT (*WINAPI DwmIsCompositionEnabled)(BOOL *pfEnabled);
 };
 
-LRESULT WINAPI ScreenSaverProc(HWND hWnd, UINT message, WPARAM wParam,
-                               LPARAM lParam);
-
-BOOL WINAPI RegisterDialogClasses(HANDLE hInst);
-
 #define SCRM_VERIFYPW WM_APP
-
-void WINAPI ScreenSaverChangePassword(HWND hParent);
 #endif
 
 #endif

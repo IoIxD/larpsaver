@@ -17,7 +17,7 @@ include_directories(${PROJECT_NAME} "include/")
 add_compile_definitions(${PROJECT_NAME} "_LARPSAVER")
 
 if(WIN32)
-  target_sources(${PROJECT_NAME} PRIVATE "src/platform/win32.c")
+  target_sources(${PROJECT_NAME} PRIVATE "src/win32.c")
   target_link_libraries(${PROJECT_NAME} PRIVATE comctl32)
 endif()
 
@@ -25,7 +25,7 @@ function(add_example example)
   add_executable("${example}" WIN32 examples/${example}.c )
   include_directories(${example} "include/")
   target_link_libraries(${example} PRIVATE larpsaver)
-  # set_target_properties(${example} PROPERTIES SUFFIX ".scr")
+  set_target_properties(${example} PROPERTIES SUFFIX ".scr")
 endfunction()
 
 add_example("opengl_example")

@@ -45,13 +45,7 @@ static void tick(larpsaver_ctx *ctx) {
   userdata->b = sin(userdata->x) * cos(userdata->x);
 }
 
-#ifdef _WIN32
-int WINAPI WinMain(HINSTANCE _hInst, HINSTANCE _hPrevInst, LPSTR _lpCmdLine,
-                   int _nShowCmd) {
-#else
-int main(int argc, char **argv) {
-#endif
-  larpsaver_ctx *ctx = larpsaver_ctx_new();
+void larpsaver_entry(larpsaver_ctx *ctx) {
   my_userdata *userdata = malloc(sizeof(my_userdata));
   if (!userdata) {
     printf("userdata was null, oom\n");
@@ -77,8 +71,4 @@ int main(int argc, char **argv) {
 
   ctx->draw_func = draw;
   ctx->tick_func = tick;
-
-  larpsaver_loop(ctx);
-
-  return 0;
 }

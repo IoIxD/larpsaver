@@ -1,31 +1,19 @@
 #include <larpsaver.h>
 #include <stdio.h>
 #include <string.h>
+#include <windows.h>
 
 static int ISSPACE(char c) { return (c == ' ' || c == '\t'); }
 #define ISNUM(c) ((c) >= '0' && c <= '9')
-static unsigned long _toul(const char *s) {
-  unsigned long res;
-  unsigned long n;
-  const char *p;
-  for (p = s; *p; p++)
-    if (!ISNUM(*p))
-      break;
-  p--;
-  res = 0;
-  for (n = 1; p >= s; p--, n *= 10)
-    res += (*p - '0') * n;
-  return res;
-}
 
-LRESULT WINAPI ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam,
-                               LPARAM lParam);
+static LRESULT WINAPI screen_saver_proc(HWND hwnd, UINT message, WPARAM wParam,
+                                        LPARAM lParam);
 
 /*
   Register screen saver window class and call user
   supplied hook.
  */
-static BOOL RegisterClasses(larpsaver_platform *platform) {
+static BOOL register_classes(struct larpsaver_platform_t *platform) {
   WNDCLASS cls;
 
   cls.hCursor = NULL;
@@ -35,17 +23,17 @@ static BOOL RegisterClasses(larpsaver_platform *platform) {
   cls.hbrBackground = GetStockObject(BLACK_BRUSH);
   cls.hInstance = platform->hMainInstance;
   cls.style = CS_VREDRAW | CS_HREDRAW | CS_SAVEBITS | CS_PARENTDC;
-  cls.lpfnWndProc = (WNDPROC)ScreenSaverProc;
+  cls.lpfnWndProc = (WNDPROC)screen_saver_proc;
   cls.cbWndExtra = 0;
   cls.cbClsExtra = 0;
 
   if (!RegisterClass(&cls))
     return FALSE;
-  return RegisterDialogClasses(platform->hMainInstance);
+  return TRUE;
 }
 
-static void LaunchScreenSaver(HWND hParent, larpsaver_ctx *ctx,
-                              larpsaver_platform *platform) {
+static void screensaver_launch(HWND hParent, larpsaver_ctx *ctx,
+                               struct larpsaver_platform_t *platform) {
   UINT style;
   RECT rc;
   MSG msg;
@@ -58,7 +46,7 @@ static void LaunchScreenSaver(HWND hParent, larpsaver_ctx *ctx,
   msg.wParam = 0;
   /* register classes, both user defined and classes used by screen saver
      library */
-  if (!RegisterClasses(platform)) {
+  if (!register_classes(platform)) {
     MessageBox(NULL, TEXT("RegisterClasses() failed"), NULL, MB_ICONHAND);
     return;
   }
@@ -90,7 +78,7 @@ static void LaunchScreenSaver(HWND hParent, larpsaver_ctx *ctx,
                SWP_NOMOVE | SWP_NOSIZE);
 #endif
 }
-static void TerminateScreenSaver(HWND hWnd, larpsaver_ctx *ctx) {
+static void screensaver_terminate(HWND hWnd, larpsaver_ctx *ctx) {
   /* don't allow recursion */
   if (ctx->platform->checking_pwd || ctx->platform->closing)
     return;
@@ -108,7 +96,7 @@ static void TerminateScreenSaver(HWND hWnd, larpsaver_ctx *ctx) {
     GetCursorPos(&ctx->platform->pt_orig); /* if not: get new mouse position */
 }
 
-void WINAPI ScreenSaverChangePassword(HWND hParent) {
+static void WINAPI screensaver_change_password(HWND hParent) {
   /* load Master Password Router (MPR) */
   HINSTANCE hMpr = LoadLibrary(TEXT("MPR.DLL"));
 
@@ -122,8 +110,8 @@ void WINAPI ScreenSaverChangePassword(HWND hParent) {
   }
 }
 
-LRESULT WINAPI ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam,
-                               LPARAM lParam) {
+static LRESULT WINAPI screen_saver_proc(HWND hwnd, UINT message, WPARAM wParam,
+                                        LPARAM lParam) {
   larpsaver_ctx *ctx = (larpsaver_ctx *)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 
   if (ctx) {
@@ -164,7 +152,7 @@ LRESULT WINAPI ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam,
     GetSystemTime(&ctx->platform->clock1);
     break;
   case WM_CLOSE:
-    TerminateScreenSaver(hwnd, ctx);
+    screensaver_terminate(hwnd, ctx);
     /* do NOT pass this to DefWindowProc; it will terminate even if
        an invalid password was given.
      */
@@ -252,21 +240,18 @@ LRESULT WINAPI ScreenSaverProc(HWND hwnd, UINT message, WPARAM wParam,
   return DefWindowProc(hwnd, message, wParam, lParam);
 }
 
-BOOL ScreenSaverConfigureDialog(HWND hDlg, UINT message, WPARAM wParam,
-                                LPARAM lParam) {
+static BOOL WINAPI screensaver_configure_dialog(HWND hDlg, UINT message,
+                                                WPARAM wParam, LPARAM lParam) {
   /* TODO: how do we do a configure dialog? */
   return FALSE;
 }
-BOOL WINAPI RegisterDialogClasses(HANDLE hInst) { return TRUE; }
 
-static void LaunchConfig(larpsaver_ctx *ctx) {
+static void launch_config(larpsaver_ctx *ctx) {
   if (ctx) {
-    /* FIXME: should this be called */
-    RegisterDialogClasses(ctx->platform->hMainInstance);
     /* display configure dialog */
     DialogBox(ctx->platform->hMainInstance,
               MAKEINTRESOURCE(DLG_SCRNSAVECONFIGURE), GetForegroundWindow(),
-              (DLGPROC)ScreenSaverConfigureDialog);
+              (DLGPROC)screensaver_configure_dialog);
   }
 }
 
@@ -349,8 +334,23 @@ static PCHAR *windows_get_command_line(ULONG *argc) {
   return argv;
 }
 
+static HWND tohwnd(const char *s) {
+  HWND res;
+  unsigned long n;
+  const char *p;
+  for (p = s; *p; p++)
+    if (!ISNUM(*p))
+      break;
+  p--;
+  res = 0;
+  for (n = 1; p >= s; p--, n *= 10)
+    res += (*p - '0') * n;
+  return res;
+}
+
 void larpsaver_platform_init(larpsaver_ctx *ctx) {
-  larpsaver_platform *plat = malloc(sizeof(struct larpsaver_platform_t));
+  struct larpsaver_platform_t *plat =
+      malloc(sizeof(struct larpsaver_platform_t));
   LPSTR p, pp;
   int i = 0, n = 0;
   OSVERSIONINFO vi;
@@ -384,7 +384,7 @@ void larpsaver_platform_init(larpsaver_ctx *ctx) {
   /* on debug builds, start screensaver if no args */
   if (argc <= 1) {
     /* start screen saver */
-    LaunchScreenSaver(NULL, ctx, plat);
+    screensaver_launch(NULL, ctx, plat);
   } else {
     /* parse arguments */
     for (i = 0; i < argc; i++) {
@@ -396,7 +396,7 @@ void larpsaver_platform_init(larpsaver_ctx *ctx) {
 
       if (ARG_CHECK("s", "S")) {
         /* start screen saver */
-        LaunchScreenSaver(NULL, ctx, plat);
+        screensaver_launch(NULL, ctx, plat);
         break;
       }
       if (ARG_CHECK("p", "P")) {
@@ -405,27 +405,27 @@ void larpsaver_platform_init(larpsaver_ctx *ctx) {
         plat->fChildPreview = TRUE;
         while (ISSPACE(*++p))
           ;
-        hParent = (HWND)(unsigned long long)_toul(p);
+        hParent = (HWND)tohwnd(p);
         if (hParent && IsWindow(hParent))
-          LaunchScreenSaver(hParent, ctx, plat);
+          screensaver_launch(hParent, ctx, plat);
         break;
       }
       if (ARG_CHECK("c", "C")) {
         /* display configure dialog */
-        LaunchConfig(ctx);
+        launch_config(ctx);
         break;
       }
       if (ARG_CHECK("a", "A")) {
         HWND hParent;
         /* start screen saver */
-        LaunchScreenSaver(NULL, ctx, plat);
+        screensaver_launch(NULL, ctx, plat);
         /* change screen saver password */
         while (ISSPACE(*++p))
           ;
-        hParent = (HWND)(unsigned long long)_toul(p);
+        hParent = (HWND)tohwnd(p);
         if (!hParent || !IsWindow(hParent))
           hParent = GetForegroundWindow();
-        ScreenSaverChangePassword(hParent);
+        screensaver_change_password(hParent);
         break;
       }
     }
@@ -434,31 +434,16 @@ void larpsaver_platform_init(larpsaver_ctx *ctx) {
   return;
 }
 
-void larpsaver_platform_free(larpsaver_platform *plat) {
+void larpsaver_platform_free(larpsaver_ctx *ctx) {
   BOOL foo;
   /* restore system */
-  if (plat->w95 && !plat->fChildPreview)
+  if (ctx->platform->w95 && !ctx->platform->fChildPreview)
     SystemParametersInfo(SPI_SCREENSAVERRUNNING, FALSE, &foo, 0);
-  FreeLibrary(plat->hPwdLib);
+  FreeLibrary(ctx->platform->hPwdLib);
   return;
 }
 
-void *larpsaver_get_proc_address(larpsaver_ctx *ctx, int api,
-                                 const char *name) {
-  void *func = NULL;
-  if (ctx->supported_apis & api) {
-    switch (api) {
-    case LARPSAVER_API_OPENGL:
-      if ((func = ctx->platform->wglGetProcAddress(name)) == NULL) {
-        func = GetProcAddress(ctx->platform->wglLib, name);
-      }
-      break;
-    }
-  }
-  return func;
-}
-
-void larpsaver_loop(larpsaver_ctx *ctx) {
+void larpsaver_platform_loop(larpsaver_ctx *ctx) {
   MSG msg = {0};
 
   ctx->running = 5;
@@ -483,4 +468,45 @@ void larpsaver_loop(larpsaver_ctx *ctx) {
     InvalidateRect(ctx->platform->hwnd, NULL, 0);
     UpdateWindow(ctx->platform->hwnd);
   }
+}
+
+void *larpsaver_get_proc_address(larpsaver_ctx *ctx, int api,
+                                 const char *name) {
+  void *func = NULL;
+  if (ctx->supported_apis & api) {
+    switch (api) {
+    case LARPSAVER_API_OPENGL:
+      if ((func = ctx->platform->wglGetProcAddress(name)) == NULL) {
+        func = GetProcAddress(ctx->platform->wglLib, name);
+      }
+      break;
+    }
+  }
+  return func;
+}
+
+#if !defined(_DEBUG)
+int WINAPI WinMain(HINSTANCE _hInst, HINSTANCE _hPrevInst, LPSTR _lpCmdLine,
+                   int _nShowCmd) {
+#else
+int main(int argc, char **argv) {
+#endif
+  larpsaver_ctx *ctx = malloc(sizeof(struct larpsaver_ctx_t));
+
+  if (ctx) {
+    memset(ctx, 0, sizeof(*ctx));
+    larpsaver_platform_init(ctx);
+
+    larpsaver_entry(ctx);
+
+    larpsaver_platform_loop(ctx);
+
+    larpsaver_platform_free(ctx);
+    free(ctx);
+  } else {
+    MessageBoxA(NULL, "Unable to display screensaver: Out of Memory", "Error",
+                MB_OK);
+  }
+
+  return 0;
 }

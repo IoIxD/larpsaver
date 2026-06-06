@@ -18,8 +18,8 @@ larpsaver.lib: win32.obj larpsaver.obj
 opengl_example.obj: ../examples/opengl_example.c
 	$(CC) $(EXE_CFLAGS) -fo=$@ -d_WIN32 ../examples/opengl_example.c
 
-win32.obj: ../src/platform/win32.c
-	$(CC) $(CFLAGS) -fo=$@ ../src/platform/win32.c
+win32.obj: ../src/win32.c
+	$(CC) $(CFLAGS) -fo=$@ ../src/win32.c
 larpsaver.obj: ../src/larpsaver.c
 	$(CC) $(CFLAGS) -fo=$@ ../src/larpsaver.c
 
