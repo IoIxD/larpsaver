@@ -351,8 +351,8 @@ static PCHAR *windows_get_command_line(ULONG *argc) {
 
 void larpsaver_platform_init(larpsaver_ctx *ctx) {
   larpsaver_platform *plat = malloc(sizeof(struct larpsaver_platform_t));
-  LPSTR p;
-  int i = 0;
+  LPSTR p, pp;
+  int i = 0, n = 0;
   OSVERSIONINFO vi;
   ULONG argc;
   PCHAR *argv = windows_get_command_line(&argc);
@@ -388,13 +388,18 @@ void larpsaver_platform_init(larpsaver_ctx *ctx) {
   } else {
     /* parse arguments */
     for (i = 0; i < argc; i++) {
+#define ARG_CHECK(a, b)                                                        \
+  (strcmp(p, "\\" a) == 0 || strcmp(p, "/" a) == 0 || strcmp(p, a) == 0 ||     \
+   strcmp(p, "\\" b) == 0 || strcmp(p, "/" b) == 0 || strcmp(p, b) == 0)
+
       p = argv[i];
-      if (strcmp(p, "\\s") == 0) {
+
+      if (ARG_CHECK("s", "S")) {
         /* start screen saver */
         LaunchScreenSaver(NULL, ctx, plat);
         break;
       }
-      if (strcmp(p, "\\p") == 0) {
+      if (ARG_CHECK("p", "P")) {
         /* start screen saver in preview window */
         HWND hParent;
         plat->fChildPreview = TRUE;
@@ -405,12 +410,12 @@ void larpsaver_platform_init(larpsaver_ctx *ctx) {
           LaunchScreenSaver(hParent, ctx, plat);
         break;
       }
-      if (strcmp(p, "\\c") == 0) {
+      if (ARG_CHECK("c", "C")) {
         /* display configure dialog */
         LaunchConfig(ctx);
         break;
       }
-      if (strcmp(p, "\\a") == 0) {
+      if (ARG_CHECK("a", "A")) {
         HWND hParent;
         /* start screen saver */
         LaunchScreenSaver(NULL, ctx, plat);
