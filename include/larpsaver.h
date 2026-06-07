@@ -1,5 +1,6 @@
 #ifndef __LARPSAVER_H
 #define __LARPSAVER_H
+#include <X11/Xutil.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -127,6 +128,32 @@ struct larpsaver_platform_t {
 };
 
 #define SCRM_VERIFYPW WM_APP
+#endif
+
+#ifdef __linux__
+#include <EGL/egl.h>
+
+struct larpsaver_platform_t {
+  Display *display;
+  Window window;
+
+  void *eglLib;
+  PFNEGLGETDISPLAYPROC eglGetDisplay;
+  PFNEGLINITIALIZEPROC eglInitialize;
+  PFNEGLGETERRORPROC eglGetError;
+  PFNEGLCREATEWINDOWSURFACEPROC eglCreateWindowSurface;
+  PFNEGLCREATECONTEXTPROC eglCreateContext;
+  PFNEGLCHOOSECONFIGPROC eglChooseConfig;
+  PFNEGLMAKECURRENTPROC eglMakeCurrent;
+  PFNEGLSWAPBUFFERSPROC eglSwapBuffers;
+  PFNEGLGETPROCADDRESSPROC eglGetProcAddress;
+
+  EGLDisplay egl_display;
+  EGLConfig egl_conf;
+  EGLContext egl_context;
+  EGLSurface egl_surface;
+};
+
 #endif
 
 #endif

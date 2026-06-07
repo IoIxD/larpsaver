@@ -64,7 +64,7 @@ void larpsaver_entry(larpsaver_ctx *ctx) {
         larpsaver_get_proc_address(ctx, LARPSAVER_API_OPENGL, "glFlush");
   } else {
     /* requires opengl */
-    exit(0);
+    // exit(0);
   }
 
   ctx->userdata = userdata;
